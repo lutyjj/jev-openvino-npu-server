@@ -1,0 +1,3 @@
+- No host pollution. Use Docker or Podman.
+- No comments in code.
+- Publish only models verified on NPU through the System One API. Keep unsuccessful experiments unpublished.

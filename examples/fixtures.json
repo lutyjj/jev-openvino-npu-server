@@ -1,0 +1,6 @@
+[
+  {"request": {"state": "I was charged twice for my order. Please refund the duplicate charge.", "questions": {"team": {"type": "choice", "instructions": "Which team should handle this request?", "criteria": {"billing": "Payments and refunds", "shipping": "Delivery tracking", "access": "Account login", "returns": "Damaged items", "other": "Other requests"}}}}},
+  {"request": {"state": "This update is excellent. Everything works perfectly.", "questions": {"sentiment": {"type": "choice", "instructions": "What is the sentiment?", "criteria": {"positive": "Satisfied", "negative": "Dissatisfied", "neutral": "Neither"}}}}},
+  {"request": {"state": "A train ticket for the morning commute.", "questions": {"category": {"type": "choice", "instructions": "Categorize this purchase.", "criteria": {"food": "Food and drinks", "transport": "Travel fares", "other": "Other purchases"}}}}},
+  {"request": {"state": "The service is unavailable and every customer is unable to sign in.", "questions": {"urgent": {"type": "noul", "instructions": "Does this incident need immediate attention?"}, "severity": {"type": "score", "instructions": "How severe is the incident?", "criteria": ["Minor inconvenience", "Some users affected", "Complete outage"]}}}}
+]

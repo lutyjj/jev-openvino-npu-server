@@ -1,0 +1,29 @@
+[project]
+name = "jev-openvino-npu-server"
+version = "0.1.0"
+description = "Jev-style decision models on Intel NPU through OpenVINO"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "openvino==2026.4.0",
+  "numpy==2.5.3",
+  "tokenizers==0.23.2",
+  "fastapi==0.141.1",
+  "uvicorn==0.54.0",
+]
+
+[project.optional-dependencies]
+export = [
+  "torch==2.14.0",
+  "transformers==5.17.0",
+  "huggingface-hub<2.0",
+  "safetensors==0.8.0",
+]
+test = ["pytest==9.1.1", "httpx==0.28.1", "typesafe-sdk==0.7.1"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
