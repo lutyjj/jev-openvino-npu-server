@@ -8,6 +8,7 @@ dependencies = [
   "numpy==2.5.3",
   "tokenizers==0.23.2",
   "fastapi==0.141.1",
+  "pydantic==2.13.5",
   "uvicorn==0.54.0",
 ]
 
@@ -19,6 +20,7 @@ export = [
   "safetensors==0.8.0",
 ]
 test = ["pytest==9.1.1", "httpx==0.28.1", "typesafe-sdk==0.7.1"]
+codegen = ["datamodel-code-generator[ruff]==0.83.0"]
 
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }

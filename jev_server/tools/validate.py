@@ -5,7 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
-from .runtime import Runtime
+from jev_server.api.types import SystemOneRequest
+from jev_server.runtime import Runtime
 
 
 def main():
@@ -19,14 +20,27 @@ def main():
         parser.error("repeats must be positive")
     runtime = Runtime(args.model_dir, args.backend, args.device)
     refs = json.loads((args.model_dir / "reference.json").read_text())
+    prepared = runtime.prepare(SystemOneRequest.model_validate(refs[0]["request"]))
     timings = []
     for _ in range(args.repeats):
         start = time.perf_counter()
-        runtime.infer(refs[0]["job"])
+        runtime.answer(prepared)
         timings.append((time.perf_counter() - start) * 1000)
-    print(json.dumps({"passed": True, **runtime.evidence, "repeats": args.repeats,
-                      "latency_ms": {"median": float(np.median(timings)), "p95": float(np.percentile(timings, 95))},
-                      "profile": runtime.profile()}), flush=True)
+    print(
+        json.dumps(
+            {
+                "passed": True,
+                **runtime.evidence,
+                "repeats": args.repeats,
+                "latency_ms": {
+                    "median": float(np.median(timings)),
+                    "p95": float(np.percentile(timings, 95)),
+                },
+                "profile": runtime.profile(),
+            }
+        ),
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

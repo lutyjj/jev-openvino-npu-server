@@ -1,6 +1,6 @@
 # Attribution
 
-- `jev_server/api.py` adapts [Kev](https://github.com/jaredpalmer/kev/tree/5920c5fe4ca8e0970ed4209ac2c9b8e18bea5109),
+- `jev_server/api/mapping.py` adapts [Kev](https://github.com/jaredpalmer/kev/tree/5920c5fe4ca8e0970ed4209ac2c9b8e18bea5109),
   copyright 2026 Jared Palmer, under [Apache-2.0](LICENSE), with modified request
   handling and date preprocessing removed. Kev and Qwen3 weights are Apache-2.0.
 - The exporter adapts the fixed attention layout and pointer selectors from

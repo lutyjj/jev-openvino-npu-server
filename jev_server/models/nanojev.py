@@ -1,37 +1,7 @@
-from dataclasses import dataclass
-
 import numpy as np
 
-from .api import to_record
-from .encoding import encode
-
-
-@dataclass
-class Prepared:
-    jobs: list
-    meta: list
-    input_tokens: int
-
-
-class KevAdapter:
-    graphs = ("model",)
-
-    def __init__(self, config, tokenizer):
-        self.config = config
-        self.tokenizer = tokenizer
-
-    def prepare(self, request):
-        record, meta = to_record(request)
-        encoded = [encode(self.tokenizer, record["state"], q, self.config["length"], self.config["max_options"])
-                   for q in record["questions"]]
-        return Prepared([{"inputs": inputs, "options": len(q["options"])}
-                         for (inputs, _), q in zip(encoded, record["questions"])], meta,
-                        sum(count for _, count in encoded))
-
-    def infer(self, job, backend):
-        inputs = {k: np.asarray(v, dtype=np.int64 if k == "input_ids" else np.float32)
-                  for k, v in job["inputs"].items()}
-        return backend.run("model", inputs)[0, :job["options"]]
+from jev_server.api.mapping import to_record
+from jev_server.models.base import Prepared
 
 
 class NanoJevAdapter:
@@ -68,17 +38,33 @@ class NanoJevAdapter:
             values = criteria.values() if isinstance(criteria, dict) else criteria
             if any(not isinstance(v, str) or not v.strip() for v in values):
                 raise ValueError("NanoJev requires nonempty text criteria")
-            if options < 2 or options > min(self.config["max_options"], 10 if typ == "score" else 255):
+            if options < 2 or options > min(
+                self.config["max_options"], 10 if typ == "score" else 255
+            ):
                 raise ValueError("NanoJev option count exceeds the model limits")
-            segments = [f"State:\n{request.state}\n", f"Question type: {typ}\nQuestion:\n{instructions}\n"]
+            segments = [
+                f"State:\n{request.state}\n",
+                f"Question type: {typ}\nQuestion:\n{instructions}\n",
+            ]
             if typ == "boolean":
                 for key, label in (("false", "False"), ("true", "True")):
                     if key in criteria:
                         segments[1] += f"{label} criterion: {criteria[key]}\n"
-            prefix = sum([self.tokenizer.encode(t, add_special_tokens=False).ids for t in segments], [])
+            prefix = sum(
+                [
+                    self.tokenizer.encode(t, add_special_tokens=False).ids
+                    for t in segments
+                ],
+                [],
+            )
             paths = []
             for text in texts:
-                ids = prefix + self.tokenizer.encode(f"Candidate:\n{text}\nDecision:", add_special_tokens=False).ids
+                ids = (
+                    prefix
+                    + self.tokenizer.encode(
+                        f"Candidate:\n{text}\nDecision:", add_special_tokens=False
+                    ).ids
+                )
                 ids += [self.config["eos_token_id"]]
                 if len(ids) > self.config["length"]:
                     raise ValueError("Candidate exceeds context; no text was truncated")
@@ -93,21 +79,20 @@ class NanoJevAdapter:
         leaves = np.zeros((1, width, self.config["hidden_size"]), dtype=np.float32)
         for index, ids in enumerate(job["paths"]):
             tokens = np.zeros((1, length), dtype=np.int64)
-            tokens[0, :len(ids)] = ids
+            tokens[0, : len(ids)] = ids
             selector = np.zeros((1, 1, length), dtype=np.float32)
             selector[0, 0, len(ids) - 1] = 1
-            leaves[0, index] = backend.run("backbone", {"input_ids": tokens, "leaf_map": selector})[0, 0]
+            leaves[0, index] = backend.run(
+                "backbone", {"input_ids": tokens, "leaf_map": selector}
+            )[0, 0]
         valid = np.zeros((1, width), dtype=np.float32)
-        valid[0, :job["options"]] = 1
-        return backend.run("head", {"leaves": leaves, "valid": valid,
-                            "is_choice": np.array([[job["type"] == "choice"]], dtype=np.float32),
-                            "is_boolean": np.array([[job["type"] == "boolean"]], dtype=np.float32)})[0, :job["options"]]
-
-
-def load_adapter(config, tokenizer):
-    adapters = {"kev-qwen3": KevAdapter, "nanojev-qwen3": NanoJevAdapter}
-    try:
-        adapter = adapters[config["adapter"]]
-    except KeyError as error:
-        raise ValueError("Unsupported or missing model adapter") from error
-    return adapter(config, tokenizer)
+        valid[0, : job["options"]] = 1
+        return backend.run(
+            "head",
+            {
+                "leaves": leaves,
+                "valid": valid,
+                "is_choice": np.array([[job["type"] == "choice"]], dtype=np.float32),
+                "is_boolean": np.array([[job["type"] == "boolean"]], dtype=np.float32),
+            },
+        )[0, : job["options"]]
