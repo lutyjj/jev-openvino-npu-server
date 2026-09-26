@@ -34,6 +34,7 @@ def bundle(request, tmp_path, monkeypatch):
     config = {
         "adapter": request.param,
         "model_id": "test",
+        "release_date": "2026-09-20",
         "length": 64,
         "max_options": 2,
         "hidden_size": 4,
@@ -62,6 +63,7 @@ def test_startup_prepares_reference_requests(bundle):
     directory, backend = bundle
     runtime = Runtime(directory, device="CPU")
     assert runtime.evidence["reference_argmax_matches"] == 1
+    assert runtime.config["release_date"] == "2026-09-20"
     token_inputs = [
         inputs["input_ids"] for _, inputs in backend.calls if "input_ids" in inputs
     ]
@@ -89,12 +91,25 @@ def test_invalid_preparation_fails_before_inference(bundle):
     assert backend.calls == []
 
 
-def test_old_bundle_requires_reexport(bundle):
+@pytest.mark.parametrize("version", [1, 2])
+def test_old_bundle_requires_reexport(bundle, version):
     directory, backend = bundle
     path = directory / "config.json"
     config = json.loads(path.read_text())
-    config["format_version"] = 1
+    config["format_version"] = version
     path.write_text(json.dumps(config))
     with pytest.raises(ValueError, match="re-export"):
+        Runtime(directory, device="CPU")
+    assert backend.calls == []
+
+
+@pytest.mark.parametrize("value", [None, "unknown", "2026-02-30"])
+def test_release_date_is_required_and_validated(bundle, value):
+    directory, backend = bundle
+    path = directory / "config.json"
+    config = json.loads(path.read_text())
+    config["release_date"] = value
+    path.write_text(json.dumps(config))
+    with pytest.raises(ValueError, match="release_date"):
         Runtime(directory, device="CPU")
     assert backend.calls == []

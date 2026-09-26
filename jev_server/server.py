@@ -60,7 +60,7 @@ def create_app(runtime, api_key=None):
                 {
                     "name": name,
                     "description": runtime.config["model_id"],
-                    "release_date": "2026-09-26",
+                    "release_date": runtime.config["release_date"],
                 }
                 for name in runtime.models
             ]

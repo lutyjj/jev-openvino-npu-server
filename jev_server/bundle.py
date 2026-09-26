@@ -1,6 +1,7 @@
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Literal
 
@@ -9,14 +10,15 @@ from tokenizers import Tokenizer
 
 from jev_server.api.types import SystemOneRequest
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 
 
 class BundleConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    format_version: Literal[2]
+    format_version: Literal[3]
     model_id: str = Field(min_length=1)
+    release_date: date
     adapter: str = Field(min_length=1)
     length: PositiveInt
     max_options: PositiveInt
@@ -43,7 +45,7 @@ class Bundle:
         config = json.loads((directory / "config.json").read_text())
         if config.get("format_version") != FORMAT_VERSION:
             raise ValueError("Unsupported bundle format; re-export the model")
-        config = BundleConfig.model_validate(config).model_dump()
+        config = BundleConfig.model_validate(config).model_dump(mode="json")
         tokenizer_path = directory / "tokenizer.json"
         digest = hashlib.sha256(tokenizer_path.read_bytes()).hexdigest()
         if digest != config.get("tokenizer_sha256"):

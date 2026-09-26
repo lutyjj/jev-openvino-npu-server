@@ -126,6 +126,7 @@ def main():
     ov.save_model(ir, args.output / "model.xml")
     config = {
         "model_id": pins["checkpoint"]["repo"].split("/")[-1],
+        "release_date": pins["checkpoint"]["release_date"],
         "adapter": "kev-qwen3",
         "length": args.length,
         "max_options": args.max_options,

@@ -113,6 +113,7 @@ def main():
     tokenizer = Tokenizer.from_file(str(checkpoint / "tokenizer/tokenizer.json"))
     config = {
         "model_id": "nanojev",
+        "release_date": pins["release_date"],
         "adapter": "nanojev-qwen3",
         "length": args.length,
         "max_options": args.max_options,

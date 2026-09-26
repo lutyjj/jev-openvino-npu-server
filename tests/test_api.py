@@ -24,7 +24,12 @@ class Tokenizer:
 
 
 class StubRuntime(Runtime):
-    config = {"model_id": "test-model", "length": 256, "max_options": 32}
+    config = {
+        "model_id": "test-model",
+        "release_date": "2026-09-20",
+        "length": 256,
+        "max_options": 32,
+    }
     models = ("test-model", "jev-latest")
     evidence = {"execution_devices": ["NPU"]}
     tokenizer = Tokenizer()
@@ -50,6 +55,17 @@ def test_auth_and_model_contract(client):
     assert {
         m.name for m in ListModelsResponse.model_validate_json(response.text).models
     } == {"test-model", "jev-latest"}
+
+
+@pytest.mark.parametrize("release_date", ["2024-01-05", "2025-12-31"])
+def test_model_release_date_comes_from_bundle(release_date):
+    runtime = StubRuntime()
+    runtime.config = {**runtime.config, "release_date": release_date}
+    client = TestClient(create_app(runtime))
+    response = client.get("/v1/models")
+    assert response.status_code == 200
+    models = ListModelsResponse.model_validate_json(response.text).models
+    assert all(model.release_date == release_date for model in models)
 
 
 def test_typed_answers_parse_with_official_sdk(client):
@@ -94,7 +110,10 @@ def test_unknown_model(client):
 
 @pytest.mark.parametrize("count,status", [(10, 200), (16, 200), (17, 422)])
 def test_question_limit(client, count, status):
-    request = {"state": "", "questions": {str(i): {"type": "noul"} for i in range(count)}}
+    request = {
+        "state": "",
+        "questions": {str(i): {"type": "noul"} for i in range(count)},
+    }
     response = client.post(
         "/v1/systemone", json=request, headers={"Authorization": "Bearer test-key"}
     )
