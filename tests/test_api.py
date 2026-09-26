@@ -92,14 +92,16 @@ def test_unknown_model(client):
     )
 
 
-def test_question_limit(client):
-    request = {"state": "", "questions": {str(i): {"type": "noul"} for i in range(9)}}
-    assert (
-        client.post(
-            "/v1/systemone", json=request, headers={"Authorization": "Bearer test-key"}
-        ).status_code
-        == 422
+@pytest.mark.parametrize("count,status", [(10, 200), (16, 200), (17, 422)])
+def test_question_limit(client, count, status):
+    request = {"state": "", "questions": {str(i): {"type": "noul"} for i in range(count)}}
+    response = client.post(
+        "/v1/systemone", json=request, headers={"Authorization": "Bearer test-key"}
     )
+    assert response.status_code == status
+    assert client.get("/healthz").json()["limits"]["questions"] == 16
+    if status == 200:
+        assert set(response.json()["answers"]) == set(request["questions"])
 
 
 def test_single_score_level():

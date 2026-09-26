@@ -14,6 +14,8 @@ from jev_server.api.generated import ModelMetadataList
 from jev_server.api.types import SystemOneRequest, SystemOneResponse
 from jev_server.runtime import Runtime
 
+MAX_QUESTIONS = 16
+
 
 def create_app(runtime, api_key=None):
     app = FastAPI(title="Jev-style models OpenVINO NPU server")
@@ -47,7 +49,7 @@ def create_app(runtime, api_key=None):
             "limits": {
                 "tokens_per_sequence": runtime.config["length"],
                 "options": runtime.config["max_options"],
-                "questions": 8,
+                "questions": MAX_QUESTIONS,
             },
         }
 
@@ -68,8 +70,8 @@ def create_app(runtime, api_key=None):
     def systemone(req: SystemOneRequest):
         if req.model not in runtime.models:
             raise HTTPException(404, "Unknown model; see /v1/models")
-        if len(req.questions) > 8:
-            raise HTTPException(422, "Maximum 8 questions per request")
+        if len(req.questions) > MAX_QUESTIONS:
+            raise HTTPException(422, f"Maximum {MAX_QUESTIONS} questions per request")
         try:
             prepared = runtime.prepare(req)
         except ValueError as error:
