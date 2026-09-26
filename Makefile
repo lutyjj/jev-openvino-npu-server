@@ -9,6 +9,9 @@ DOCKER ?= docker
 EXPORTER ?= jev_server.exporters.kev
 EXPORT_IMAGE ?= jev-openvino-npu-server-export:local
 EXPORT_ARGS ?=
+COMPILE_ARGS ?=
+BENCH_ARGS ?= --help
+BENCH_DOCKER_ARGS ?=
 PLATFORM ?= 3720
 
 .PHONY: images export compile test schema upload run stop tunnel smoke
@@ -22,7 +25,12 @@ export:
 	$(DOCKER) run --rm --memory 7g --memory-swap 9g --cpus 4 --user "$$(id -u):$$(id -g)" -e HOME=/tmp -e HF_HOME=/cache -v "$(HF_CACHE):/cache" -v "$(MODEL_DIR):/artifacts" --entrypoint python $(EXPORT_IMAGE) -m $(EXPORTER) --output /artifacts $(EXPORT_ARGS)
 
 compile:
-	$(DOCKER) run --rm --memory 7g --memory-swap 9g --cpus 2 --user "$$(id -u):$$(id -g)" -e HOME=/tmp --entrypoint python3 -v "$(MODEL_DIR):/models" jev-openvino-npu-server:local -m jev_server.tools.compile --platform "$(PLATFORM)"
+	$(DOCKER) run --rm --memory 7g --memory-swap 9g --cpus 2 --user "$$(id -u):$$(id -g)" -e HOME=/tmp --entrypoint python3 -v "$(MODEL_DIR):/models" jev-openvino-npu-server:local -m jev_server.tools.compile --platform "$(PLATFORM)" $(COMPILE_ARGS)
+
+.PHONY: bench
+bench:
+	mkdir -p reports
+	$(DOCKER) run --rm --network host $(BENCH_DOCKER_ARGS) --user "$$(id -u):$$(id -g)" -e PYTHONDONTWRITEBYTECODE=1 -e JEV_API_KEY -v "$(CURDIR)/jev_server:/app/jev_server:ro" -v "$(CURDIR)/reports:/reports" -v "$(MODEL_DIR):/models:ro" --entrypoint python3 jev-openvino-npu-server:local -m jev_server.tools.bench $(BENCH_ARGS)
 
 test:
 	$(DOCKER) run --rm --entrypoint python -e PYTHONDONTWRITEBYTECODE=1 -v "$(CURDIR)/jev_server:/app/jev_server:ro" -v "$(CURDIR)/examples:/app/examples:ro" -v "$(CURDIR)/schemas:/app/schemas:ro" -v "$(CURDIR)/tests:/app/tests:ro" -v "$(MODEL_DIR):/models:ro" -v "$(CURDIR)/artifacts/nanojev:/nano:ro" jev-openvino-npu-server-export:local -m pytest -q -p no:cacheprovider

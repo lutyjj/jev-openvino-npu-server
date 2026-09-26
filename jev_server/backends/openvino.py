@@ -1,3 +1,4 @@
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -25,7 +26,8 @@ def load_npu(core, directory):
         )
     mapped = np.memmap(directory / "model.blob", dtype=np.uint8, mode="c")
     tensor = ov.Tensor(mapped, shared_memory=True)
-    compiled = core.import_model(tensor, "NPU", {"PERF_COUNT": True})
+    profiling = metadata.get("properties", {}).get("PERF_COUNT", True)
+    compiled = core.import_model(tensor, "NPU", {"PERF_COUNT": profiling})
     return compiled, (mapped, tensor)
 
 
@@ -42,6 +44,8 @@ class OpenVINOBackend:
         self.models = {}
         self.storage = []
         self.requests = {}
+        self.profiling = {}
+        artifacts, compilation = {}, {}
         for name in graphs:
             if not name.isidentifier():
                 raise ValueError("Invalid graph name")
@@ -65,6 +69,17 @@ class OpenVINOBackend:
                 raise RuntimeError(f"Unexpected execution devices: {devices}")
             self.models[name] = compiled
             self.requests[name] = compiled.create_infer_request()
+            files = ["model.blob"] if device == "NPU" else ["model.xml", "model.bin"]
+            for filename in files:
+                with (path / filename).open("rb") as source:
+                    artifacts[f"{name}/{filename}"] = hashlib.file_digest(
+                        source, "sha256"
+                    ).hexdigest()
+            if device == "NPU":
+                compilation[name] = json.loads((path / "compile.json").read_text())
+            self.profiling[name] = (
+                compilation.get(name, {}).get("properties", {}).get("PERF_COUNT", True)
+            )
         self.evidence = {
             "backend": "openvino",
             "execution_devices": [device],
@@ -72,6 +87,8 @@ class OpenVINOBackend:
             "device_name": self.core.get_property(device, "FULL_DEVICE_NAME"),
             "openvino": ov.__version__,
             "load_seconds": round(time.perf_counter() - started, 3),
+            "artifacts": artifacts,
+            "compilation": compilation,
         }
         if device == "NPU":
             self.evidence["architecture"] = self.core.get_property(
@@ -85,14 +102,18 @@ class OpenVINOBackend:
 
     def profile(self):
         return {
-            name: [
-                {
-                    "node": p.node_name,
-                    "execution_type": p.exec_type,
-                    "status": str(p.status),
-                    "real_us": p.real_time.total_seconds() * 1e6,
-                }
-                for p in request.profiling_info
-            ]
+            name: (
+                [
+                    {
+                        "node": p.node_name,
+                        "execution_type": p.exec_type,
+                        "status": str(p.status),
+                        "real_us": p.real_time.total_seconds() * 1e6,
+                    }
+                    for p in request.profiling_info
+                ]
+                if self.profiling[name]
+                else []
+            )
             for name, request in self.requests.items()
         }
